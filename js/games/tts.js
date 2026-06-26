@@ -67,6 +67,7 @@ export function mount(root){
           if(inp.value) focusNext(r, c);
         });
         inp.addEventListener("focus", () => highlightContaining(r, c));
+        inp.addEventListener("keydown", e => handleKey(e, r, c, inp));
         cell.append(inp);
         board.append(cell);
         inputs[r + "," + c] = inp;
@@ -119,6 +120,38 @@ export function mount(root){
     const idx = activeClue.cells.findIndex(([rr, cc]) => rr === r && cc === c);
     const nxt = activeClue.cells[idx + 1];
     if(nxt) inputs[nxt[0] + "," + nxt[1]].focus();
+  }
+
+  // Cari kotak terisi berikutnya ke arah (dr,dc), lewati kotak hitam & tepi.
+  function findInDir(r, c, dr, dc){
+    let rr = r + dr, cc = c + dc;
+    while(rr >= 0 && cc >= 0 && rr < puzzle.rows && cc < puzzle.cols){
+      const inp = inputs[rr + "," + cc];
+      if(inp) return inp;
+      rr += dr; cc += dc;
+    }
+    return null;
+  }
+  function focusInput(inp){ if(inp){ inp.focus(); inp.select && inp.select(); } return inp; }
+
+  function handleKey(e, r, c, inp){
+    switch(e.key){
+      case "ArrowRight": e.preventDefault(); focusInput(findInDir(r, c, 0, 1)); return;
+      case "ArrowLeft":  e.preventDefault(); focusInput(findInDir(r, c, 0, -1)); return;
+      case "ArrowDown":  e.preventDefault(); focusInput(findInDir(r, c, 1, 0)); return;
+      case "ArrowUp":    e.preventDefault(); focusInput(findInDir(r, c, -1, 0)); return;
+      case "Backspace":
+        if(inp.value) return; // kotak ada isinya: biarkan terhapus di tempat (event 'input' membersihkan tanda)
+        e.preventDefault();   // kotak kosong: mundur satu kotak lalu hapus isinya
+        let prev = null;
+        if(activeClue){
+          const idx = activeClue.cells.findIndex(([rr, cc]) => rr === r && cc === c);
+          if(idx > 0){ const [pr, pc] = activeClue.cells[idx - 1]; prev = inputs[pr + "," + pc]; }
+        }
+        if(!prev) prev = findInDir(r, c, 0, -1) || findInDir(r, c, -1, 0);
+        if(prev){ prev.value = ""; prev.parentElement.classList.remove("ok", "no"); focusInput(prev); }
+        return;
+    }
   }
 
   function check(){
